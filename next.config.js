@@ -1,5 +1,10 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // 服务器配置
+  server: {
+    port: 3005,
+    hostname: '0.0.0.0'
+  },
   images: {
     unoptimized: true,
     domains: [

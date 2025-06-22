@@ -41,7 +41,7 @@ export async function POST(request: Request) {
 ## 用户信息
 - 学习目标：${goal}
 - 技能水平：${level}
-- 每周投入时间：${timeCommitment}小时
+- 每天投入时间：${timeCommitment}小时
 - 学习背景：${currentSkills}
 
 ## 要求
@@ -62,7 +62,7 @@ export async function POST(request: Request) {
 
     // 调用AI生成结构化内容
     const { object } = await generateObject({
-      model: openrouter('deepseek/deepseek-chat'),
+      model: openrouter('openai/gpt-4o'),
       schema: learningPlanSchema,
       prompt,
     });

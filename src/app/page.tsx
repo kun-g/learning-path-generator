@@ -114,7 +114,7 @@ export default function Home() {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">每周投入时间（小时）</label>
+                  <label className="text-sm font-medium">每天投入时间（小时）</label>
                   <Input
                     type="number"
                     min="1"
