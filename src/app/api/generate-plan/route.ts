@@ -28,7 +28,24 @@ const learningPlanSchema = z.object({
 
 export async function POST(request: Request) {
   try {
-    const { goal, level, timeCommitment, currentSkills } = await request.json();
+    const { 
+      requirementsSummary,
+      approvedOutline 
+    } = await request.json();
+
+    const outlineText = approvedOutline 
+      ? `
+学习概览：${approvedOutline.overview.title}
+${approvedOutline.overview.description}
+
+各阶段安排：
+${approvedOutline.phases.map(phase => `
+第${phase.phase}阶段：${phase.title}（${phase.duration}）
+目标：${phase.objective}
+关键里程碑：${phase.keyMilestones.join('、')}
+`).join('\n')}
+`
+      : '无大纲信息';
 
     // 构建AI提示词
     const prompt = `
@@ -36,25 +53,39 @@ export async function POST(request: Request) {
 你是一名资深「项目制学习规划师」。
 
 ## 任务
-请根据用户给出的学习目标，输出一份为期 6 周的 Project-Based Learning 计划。
+基于用户澄清的需求和已确认的学习大纲，生成详细的Project-Based Learning执行计划。
 
-## 用户信息
-- 学习目标：${goal}
-- 技能水平：${level}
-- 每天投入时间：${timeCommitment}小时
-- 学习背景：${currentSkills}
+## 用户需求摘要
+### 学习者画像
+- 背景：${requirementsSummary.learner.background}
+- 每周投入时间：${requirementsSummary.learner.weekly_hours}小时
+- 学习偏好：${requirementsSummary.learner.preferences}
 
-## 要求
-1. 计划分 6 个 Sprint（每周一个）。
-2. 每个 Sprint 包含：
-   - **挑战性项目标题**（<= 10 字）
-   - **核心技能**（3-5 个 bullet）
-   - **关键产物**（可验证交付物，1-2 句）
-   - **资源清单**（教程 / 开源 repo / 文章 3 条，提供真实可访问的URL）
-3. 项目难度应该递进，从简单到复杂
-4. 确保每个项目都有明确的可交付成果
-5. 技能应该围绕学习目标循序渐进
-6. 资源链接要真实有效，优先推荐官方文档、知名教程网站
+### 学习目标
+${requirementsSummary.goal}
+
+### 时间与资源约束
+- 总时长：${requirementsSummary.constraints.total_hours}小时
+- 阶段数：${requirementsSummary.constraints.stages}个阶段
+- 硬性限制：${requirementsSummary.constraints.hard_limits}
+
+### 评估方式
+- 验收标准：${requirementsSummary.evaluation.acceptance_criteria}
+- 反馈频率：${requirementsSummary.evaluation.feedback_cycle}
+
+## 已确认学习大纲
+${outlineText}
+
+## 详细计划要求
+1. 严格按照确认的大纲框架生成6周详细计划
+2. 每周包含：
+   - **项目标题**（<= 10字，体现该周核心任务）
+   - **核心技能**（3-5个技能点）
+   - **可交付成果**（具体的项目产物）
+   - **学习资源**（3个高质量资源链接）
+3. 确保每周项目与大纲阶段目标对应
+4. 项目难度递进，技能逐步深入
+5. 资源要真实有效，优先官方文档和知名平台
 
 ## 输出格式要求
 返回JSON格式，包含字段：week, title, skills, deliverable, resources
