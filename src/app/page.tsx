@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -35,10 +35,21 @@ export default function Home() {
   const [finalPlan, setFinalPlan] = useState<LearningPlan | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // 自动滚动到底部
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  // 当对话历史更新时滚动到底部
+  useEffect(() => {
+    scrollToBottom();
+  }, [conversationHistory]);
 
 
   // 调试模式：预设对话和需求数据，但保留手动操作
@@ -164,21 +175,44 @@ export default function Home() {
 
       if (!response.ok) throw new Error('发送消息失败');
 
-      const result = await response.json();
-      
-      const assistantMessage: ConversationMessage = {
-        role: 'assistant',
-        content: result.message,
-        timestamp: Date.now()
-      };
+      // 处理流式响应
+      const reader = response.body?.getReader();
+      if (!reader) throw new Error('无法读取响应流');
 
-      setConversationHistory([...newHistory, assistantMessage]);
+      const decoder = new TextDecoder();
+      let fullResponse = '';
+      
+      // 添加一个空的助手消息用于流式更新
+      const assistantMessageIndex = newHistory.length;
+      setConversationHistory([...newHistory, {
+        role: 'assistant',
+        content: '',
+        timestamp: Date.now()
+      }]);
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value, { stream: true });
+        fullResponse += chunk;
+        
+        // 更新对话历史中的助手消息
+        setConversationHistory(prev => {
+          const updated = [...prev];
+          updated[assistantMessageIndex] = {
+            ...updated[assistantMessageIndex],
+            content: fullResponse
+          };
+          return updated;
+        });
+      }
 
       // 检查是否完成需求澄清
-      if (result.isComplete) {
+      if (fullResponse.includes('[需求澄清完成]')) {
         // 从Markdown中解析需求摘要
         try {
-          const content = result.message;
+          const content = fullResponse;
           
           // 提取各个部分的信息
           const goalMatch = content.match(/### 🎯 学习目标\s*\*\*(.*?)\*\*/);
@@ -212,7 +246,11 @@ export default function Home() {
           setRequirementsSummary(summary);
           setGenerationState({
             ...generationState,
-            conversationHistory: [...newHistory, assistantMessage],
+            conversationHistory: [...newHistory, {
+              role: 'assistant',
+              content: fullResponse,
+              timestamp: Date.now()
+            }],
             requirementsSummary: summary,
             stage: 'clarification'
           });
@@ -323,11 +361,6 @@ export default function Home() {
             : 'bg-gray-100 text-gray-800'
         }`}>
           <div className="text-sm break-words hyphens-auto" style={{wordWrap: 'break-word', overflowWrap: 'anywhere'}}>{message.content}</div>
-          {mounted && (
-            <div className="text-xs opacity-70 mt-1">
-              {new Date(message.timestamp).toLocaleTimeString()}
-            </div>
-          )}
         </div>
       </div>
     );
@@ -404,7 +437,7 @@ export default function Home() {
                 {/* 对话区域：可滚动 */}
                 <div className="flex-1 overflow-y-auto mb-4 min-h-0">
                   {conversationHistory.map(renderMessage)}
-                  {isLoading && (
+                  {isLoading && conversationHistory[conversationHistory.length - 1]?.role !== 'assistant' && (
                     <div className="flex justify-start mb-4">
                       <div className="bg-gray-100 p-3 rounded-lg">
                         <Loader2 className="w-4 h-4 animate-spin" />
@@ -483,6 +516,9 @@ export default function Home() {
                       </Card>
                     </div>
                   )}
+                  
+                  {/* 滚动锚点 */}
+                  <div ref={messagesEndRef} />
                 </div>
                 
                 {/* 底部固定区域 */}

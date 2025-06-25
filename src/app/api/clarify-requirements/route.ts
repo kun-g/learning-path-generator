@@ -1,5 +1,5 @@
 import { createOpenAI } from '@ai-sdk/openai';
-import { generateText } from 'ai';
+import { streamText } from 'ai';
 
 // 配置OpenRouter客户端
 const openrouter = createOpenAI({
@@ -81,28 +81,19 @@ user: ${userMessage}
     console.log('提示词长度:', prompt.length);
     console.log('开始调用AI API...');
 
-    // 调用AI生成对话回复
+    // 调用AI生成流式对话回复
     const startTime = Date.now();
-    const { text } = await generateText({
+    const result = await streamText({
       model: openrouter('openai/gpt-4o'),
       prompt,
       maxTokens: 1000, // 限制输出长度
       temperature: 0.7,
       abortSignal: AbortSignal.timeout(30000), // 30秒超时
     });
-    const endTime = Date.now();
 
-    console.log('AI API调用成功:', {
-      duration: endTime - startTime + 'ms',
-      responseLength: text.length,
-      responsePreview: text.substring(0, 200) + (text.length > 200 ? '...' : ''),
-      isComplete: text.includes('[需求澄清完成]')
-    });
+    console.log('AI API调用开始，返回流式响应...');
 
-    return Response.json({ 
-      message: text,
-      isComplete: text.includes('[需求澄清完成]')
-    });
+    return result.toTextStreamResponse();
   } catch (error) {
     console.error('=== 对话处理失败 ===');
     console.error('错误类型:', error.constructor.name);
