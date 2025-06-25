@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,6 +18,7 @@ import type {
 } from '@/types';
 
 export default function Home() {
+  const [mounted, setMounted] = useState(false);
   const [generationState, setGenerationState] = useState<GenerationState>({
     stage: 'clarification',
   });
@@ -34,6 +35,10 @@ export default function Home() {
   const [finalPlan, setFinalPlan] = useState<LearningPlan | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
 
   // 调试模式：预设对话和需求数据，但保留手动操作
@@ -75,7 +80,7 @@ export default function Home() {
       },
       {
         role: 'assistant',
-        content: '明白了！根据你的情况，我来总结一下你的需求：\n\n```json\n{\n  "goal": "学习iOS开发，能够独立开发完整的移动应用",\n  \n  "learner": {\n    "background": "有Java编程基础，对移动端开发感兴趣",\n    "weekly_hours": 15,\n    "preferences": "希望通过实际项目来学习，偏好循序渐进的方式"\n  },\n  \n  "constraints": {\n    "total_hours": 90,\n    "stages": 3,\n    "hard_limits": "每周最多15小时，希望6周内完成基础学习"\n  },\n  \n  "evaluation": {\n    "acceptance_criteria": "能够独立开发一个包含基本功能的iOS应用",\n    "feedback_cycle": "每周检查学习进度和项目完成情况"\n  }\n}\n```\n\n✅ **需求澄清完成！** 点击"生成学习大纲"按钮继续下一步。',
+        content: '明白了！根据你的情况，我来总结一下你的需求：\n\n## 📋 需求摘要\n\n### 🎯 学习目标\n**学习iOS开发，能够独立开发完整的移动应用**\n\n### 👤 学习者画像\n- **背景**：有Java编程基础，对移动端开发感兴趣\n- **每周时间**：15小时\n- **学习偏好**：希望通过实际项目来学习，偏好循序渐进的方式\n\n### ⏰ 约束条件\n- **总时长**：90小时\n- **阶段数**：3个阶段\n- **限制**：每周最多15小时，希望6周内完成基础学习\n\n### 📊 评估方式\n- **验收标准**：能够独立开发一个包含基本功能的iOS应用\n- **反馈频率**：每周检查学习进度和项目完成情况\n\n---\n\n✅ **需求澄清完成！** 点击"生成学习大纲"按钮继续下一步。',
         timestamp: Date.now() + 6000
       }
     ];
@@ -171,21 +176,48 @@ export default function Home() {
 
       // 检查是否完成需求澄清
       if (result.isComplete) {
-        // 解析需求摘要
-        const jsonMatch = result.message.match(/```json\n([\s\S]*?)\n```/);
-        if (jsonMatch) {
-          try {
-            const summary = JSON.parse(jsonMatch[1]);
-            setRequirementsSummary(summary);
-            setGenerationState({
-              ...generationState,
-              conversationHistory: [...newHistory, assistantMessage],
-              requirementsSummary: summary,
-              stage: 'outline'
-            });
-          } catch (parseError) {
-            console.error('解析需求摘要失败:', parseError);
-          }
+        // 从Markdown中解析需求摘要
+        try {
+          const content = result.message;
+          
+          // 提取各个部分的信息
+          const goalMatch = content.match(/### 🎯 学习目标\s*\*\*(.*?)\*\*/);
+          const backgroundMatch = content.match(/- \*\*背景\*\*：(.*?)(?=\n|$)/);
+          const weeklyHoursMatch = content.match(/- \*\*每周时间\*\*：(\d+)小时/);
+          const preferencesMatch = content.match(/- \*\*学习偏好\*\*：(.*?)(?=\n|$)/);
+          const totalHoursMatch = content.match(/- \*\*总时长\*\*：(\d+)小时/);
+          const stagesMatch = content.match(/- \*\*阶段数\*\*：(\d+)个阶段/);
+          const limitsMatch = content.match(/- \*\*限制\*\*：(.*?)(?=\n|$)/);
+          const criteriaMatch = content.match(/- \*\*验收标准\*\*：(.*?)(?=\n|$)/);
+          const feedbackMatch = content.match(/- \*\*反馈频率\*\*：(.*?)(?=\n|$)/);
+
+          const summary = {
+            goal: goalMatch?.[1]?.trim() || '',
+            learner: {
+              background: backgroundMatch?.[1]?.trim() || '',
+              weekly_hours: parseInt(weeklyHoursMatch?.[1] || '0'),
+              preferences: preferencesMatch?.[1]?.trim() || ''
+            },
+            constraints: {
+              total_hours: parseInt(totalHoursMatch?.[1] || '0'),
+              stages: parseInt(stagesMatch?.[1] || '0'),
+              hard_limits: limitsMatch?.[1]?.trim() || ''
+            },
+            evaluation: {
+              acceptance_criteria: criteriaMatch?.[1]?.trim() || '',
+              feedback_cycle: feedbackMatch?.[1]?.trim() || ''
+            }
+          };
+
+          setRequirementsSummary(summary);
+          setGenerationState({
+            ...generationState,
+            conversationHistory: [...newHistory, assistantMessage],
+            requirementsSummary: summary,
+            stage: 'clarification'
+          });
+        } catch (parseError) {
+          console.error('解析需求摘要失败:', parseError);
         }
       }
     } catch (err) {
@@ -291,9 +323,11 @@ export default function Home() {
             : 'bg-gray-100 text-gray-800'
         }`}>
           <div className="text-sm break-words hyphens-auto" style={{wordWrap: 'break-word', overflowWrap: 'anywhere'}}>{message.content}</div>
-          <div className="text-xs opacity-70 mt-1">
-            {new Date(message.timestamp).toLocaleTimeString()}
-          </div>
+          {mounted && (
+            <div className="text-xs opacity-70 mt-1">
+              {new Date(message.timestamp).toLocaleTimeString()}
+            </div>
+          )}
         </div>
       </div>
     );

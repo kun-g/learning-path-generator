@@ -54,6 +54,7 @@ ${approvedOutline.phases.map(phase => `
 
 ## 任务
 基于用户澄清的需求和已确认的学习大纲，生成详细的Project-Based Learning执行计划。
+针对下方输入的单个项目，输出一份 **可直接跟做、含操作细节与踩坑提示** 的操作手册（Project Playbook）。
 
 ## 用户需求摘要
 ### 学习者画像
