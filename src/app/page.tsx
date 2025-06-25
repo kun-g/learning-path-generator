@@ -36,10 +36,104 @@ export default function Home() {
   const [error, setError] = useState('');
 
 
+  // 调试模式：预设对话和需求数据，但保留手动操作
+  const runDebugMode = async () => {
+    setIsLoading(true);
+    setError('');
+    
+    // 模拟需求澄清对话
+    const debugConversation: ConversationMessage[] = [
+      {
+        role: 'assistant',
+        content: '你好！我是AI学习规划师，专门帮助大家制定个性化的学习计划。\n\n请告诉我你想学什么？比如："我想学React前端开发"、"想掌握Python数据分析"等等。',
+        timestamp: Date.now()
+      },
+      {
+        role: 'user',
+        content: '我要调试',
+        timestamp: Date.now() + 1000
+      },
+      {
+        role: 'assistant',
+        content: '🔧 调试模式已启动！正在使用预设的iOS移动端开发学习需求...',
+        timestamp: Date.now() + 2000
+      },
+      {
+        role: 'user',
+        content: '我想学习移动端开发，特别是iOS开发',
+        timestamp: Date.now() + 3000
+      },
+      {
+        role: 'assistant',
+        content: '很好！你想学习iOS开发。为了给你制定最合适的学习计划，我需要了解一些情况：\n\n1. 你目前的编程基础如何？是否有其他编程语言经验？\n2. 每周大概能投入多少时间学习？\n3. 你的学习目标是什么？是希望找工作还是个人兴趣？',
+        timestamp: Date.now() + 4000
+      },
+      {
+        role: 'user',
+        content: '我有一些Java基础，每周能投入15小时，目标是能开发一个完整的iOS应用',
+        timestamp: Date.now() + 5000
+      },
+      {
+        role: 'assistant',
+        content: '明白了！根据你的情况，我来总结一下你的需求：\n\n```json\n{\n  "goal": "学习iOS开发，能够独立开发完整的移动应用",\n  \n  "learner": {\n    "background": "有Java编程基础，对移动端开发感兴趣",\n    "weekly_hours": 15,\n    "preferences": "希望通过实际项目来学习，偏好循序渐进的方式"\n  },\n  \n  "constraints": {\n    "total_hours": 90,\n    "stages": 3,\n    "hard_limits": "每周最多15小时，希望6周内完成基础学习"\n  },\n  \n  "evaluation": {\n    "acceptance_criteria": "能够独立开发一个包含基本功能的iOS应用",\n    "feedback_cycle": "每周检查学习进度和项目完成情况"\n  }\n}\n```\n\n✅ **需求澄清完成！** 点击"生成学习大纲"按钮继续下一步。',
+        timestamp: Date.now() + 6000
+      }
+    ];
+
+    // 预设的需求摘要
+    const debugRequirementsSummary: RequirementsSummary = {
+      goal: "学习iOS开发，能够独立开发完整的移动应用",
+      learner: {
+        background: "有Java编程基础，对移动端开发感兴趣",
+        weekly_hours: 15,
+        preferences: "希望通过实际项目来学习，偏好循序渐进的方式"
+      },
+      constraints: {
+        total_hours: 90,
+        stages: 3,
+        hard_limits: "每周最多15小时，希望6周内完成基础学习"
+      },
+      evaluation: {
+        acceptance_criteria: "能够独立开发一个包含基本功能的iOS应用",
+        feedback_cycle: "每周检查学习进度和项目完成情况"
+      }
+    };
+
+    try {
+      // 模拟对话历史，逐条显示
+      setConversationHistory([debugConversation[0]]);
+      
+      for (let i = 1; i < debugConversation.length; i++) {
+        await new Promise(resolve => setTimeout(resolve, 800));
+        setConversationHistory(debugConversation.slice(0, i + 1));
+      }
+      
+      // 设置需求摘要，但停留在澄清阶段，等待手动操作
+      setRequirementsSummary(debugRequirementsSummary);
+      setGenerationState({
+        stage: 'clarification',
+        conversationHistory: debugConversation,
+        requirementsSummary: debugRequirementsSummary
+      });
+
+    } catch (err) {
+      setError('调试模式执行失败：' + err);
+      console.error(err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // 发送消息
   const sendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentMessage.trim() || isLoading) return;
+
+    // 检查调试模式
+    if (currentMessage.trim() === '我要调试') {
+      await runDebugMode();
+      return;
+    }
 
     const userMessage: ConversationMessage = {
       role: 'user',
@@ -283,32 +377,85 @@ export default function Home() {
                       </div>
                     </div>
                   )}
+                  
+                  {/* 如果有需求摘要，在对话区域内显示 */}
+                  {requirementsSummary && (
+                    <div className="mt-4 mb-4">
+                      <Card className="border-gray-200 bg-white shadow-sm">
+                        <CardHeader className="pb-4">
+                          <CardTitle className="text-lg font-semibold text-gray-900">需求摘要</CardTitle>
+                          <CardDescription className="text-sm text-gray-600">
+                            基于对话收集的需求信息
+                          </CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-6 pt-0">
+                          <div>
+                            <h4 className="font-semibold text-sm text-gray-700 mb-3">学习者画像</h4>
+                            <div className="bg-blue-50 p-4 rounded-lg space-y-2">
+                              <div className="flex items-start">
+                                <span className="font-medium text-sm text-gray-700 min-w-20">背景：</span>
+                                <span className="text-sm text-gray-800">{requirementsSummary.learner.background}</span>
+                              </div>
+                              <div className="flex items-start">
+                                <span className="font-medium text-sm text-gray-700 min-w-20">每周时间：</span>
+                                <span className="text-sm text-gray-800">{requirementsSummary.learner.weekly_hours}小时</span>
+                              </div>
+                              <div className="flex items-start">
+                                <span className="font-medium text-sm text-gray-700 min-w-20">偏好：</span>
+                                <span className="text-sm text-gray-800">{requirementsSummary.learner.preferences}</span>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          <div>
+                            <h4 className="font-semibold text-sm text-gray-700 mb-3">学习目标</h4>
+                            <div className="bg-green-50 p-4 rounded-lg">
+                              <p className="text-sm text-gray-800">{requirementsSummary.goal}</p>
+                            </div>
+                          </div>
+                          
+                          <div>
+                            <h4 className="font-semibold text-sm text-gray-700 mb-3">约束条件</h4>
+                            <div className="bg-yellow-50 p-4 rounded-lg space-y-2">
+                              <div className="flex items-start">
+                                <span className="font-medium text-sm text-gray-700 min-w-20">总时长：</span>
+                                <span className="text-sm text-gray-800">{requirementsSummary.constraints.total_hours}小时</span>
+                              </div>
+                              <div className="flex items-start">
+                                <span className="font-medium text-sm text-gray-700 min-w-20">阶段数：</span>
+                                <span className="text-sm text-gray-800">{requirementsSummary.constraints.stages}个阶段</span>
+                              </div>
+                              <div className="flex items-start">
+                                <span className="font-medium text-sm text-gray-700 min-w-20">限制：</span>
+                                <span className="text-sm text-gray-800">{requirementsSummary.constraints.hard_limits}</span>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          <div>
+                            <h4 className="font-semibold text-sm text-gray-700 mb-3">评估方式</h4>
+                            <div className="bg-purple-50 p-4 rounded-lg space-y-2">
+                              <div className="flex items-start">
+                                <span className="font-medium text-sm text-gray-700 min-w-20">验收标准：</span>
+                                <span className="text-sm text-gray-800">{requirementsSummary.evaluation.acceptance_criteria}</span>
+                              </div>
+                              <div className="flex items-start">
+                                <span className="font-medium text-sm text-gray-700 min-w-20">反馈频率：</span>
+                                <span className="text-sm text-gray-800">{requirementsSummary.evaluation.feedback_cycle}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </div>
+                  )}
                 </div>
                 
                 {/* 底部固定区域 */}
                 <div className="border-t pt-4 flex-shrink-0">
-                  {/* 如果还没完成澄清，显示输入框 */}
-                  {!requirementsSummary && (
-                    <form onSubmit={sendMessage} className="flex gap-2">
-                      <Input
-                        value={currentMessage}
-                        onChange={(e) => setCurrentMessage(e.target.value)}
-                        placeholder="输入您的回答..."
-                        disabled={isLoading}
-                        className="flex-1"
-                      />
-                      <Button 
-                        type="submit" 
-                        disabled={isLoading || !currentMessage.trim()}
-                      >
-                        发送
-                      </Button>
-                    </form>
-                  )}
-                  
-                  {/* 如果完成了澄清，显示确认按钮 */}
+                  {/* 如果完成了澄清，在输入框上方显示操作按钮 */}
                   {requirementsSummary && (
-                    <div className="flex gap-3">
+                    <div className="flex gap-3 mb-4">
                       <Button
                         variant="outline"
                         onClick={handleRestart}
@@ -327,6 +474,23 @@ export default function Home() {
                       </Button>
                     </div>
                   )}
+                  
+                  {/* 输入框始终保留 */}
+                  <form onSubmit={sendMessage} className="flex gap-2">
+                    <Input
+                      value={currentMessage}
+                      onChange={(e) => setCurrentMessage(e.target.value)}
+                      placeholder={requirementsSummary ? "继续优化需求..." : "输入您的回答..."}
+                      disabled={isLoading}
+                      className="flex-1"
+                    />
+                    <Button 
+                      type="submit" 
+                      disabled={isLoading || !currentMessage.trim()}
+                    >
+                      发送
+                    </Button>
+                  </form>
                 </div>
               </CardContent>
             </Card>
